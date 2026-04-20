@@ -17,6 +17,7 @@ let state = {
   scanned:     [],   // codes already scanned (in order)
   currentScreen: 'setup',
   isMuted:     false,
+  theme:       'dark', // 'dark' or 'light'
 };
 
 let scanControls   = null;   // returned by BrowserMultiFormatReader
@@ -56,6 +57,7 @@ const newBatchFromScanBtn= $('newBatchFromScanBtn');
 const muteBtn            = $('muteBtn');
 const toggleFlashBtn     = $('toggleFlashBtn');
 const retryCamera        = $('retryCamera');
+const themeToggle        = $('themeToggle');
 
 const backToScanBtn      = $('backToScanBtn');
 const newBatchFromReview = $('newBatchFromReviewBtn');
@@ -134,9 +136,16 @@ function saveToLS() {
   localStorage.setItem(LS_KEY, JSON.stringify({
     codes:   state.codes,
     scanned: state.scanned,
+    theme:   state.theme,
   }));
 }
-function clearLS() { localStorage.removeItem(LS_KEY); }
+function clearLS() { 
+  const theme = state.theme;
+  localStorage.removeItem(LS_KEY);
+  // Keep theme even after clearing batch
+  state.theme = theme;
+  saveToLS();
+}
 function loadFromLS() {
   try {
     const raw = localStorage.getItem(LS_KEY);
@@ -178,17 +187,39 @@ function showScreen(name) {
 ══════════════════════════════════════════════════════ */
 function initSetup() {
   const saved = loadFromLS();
-  if (saved && saved.codes && saved.codes.length > 0) {
-    state.codes   = saved.codes;
-    state.scanned = saved.scanned || [];
-    savedNoticeText.textContent =
-      `${saved.codes.length} mã — Đã scan ${(saved.scanned || []).length}`;
-    savedNotice.style.display = 'flex';
-    // Pre-fill textarea
-    codeListInput.value = saved.codes.join('\n');
-    updateCodePreview();
+  if (saved) {
+    if (saved.theme) {
+      state.theme = saved.theme;
+      applyTheme();
+    }
+    if (saved.codes && saved.codes.length > 0) {
+      state.codes   = saved.codes;
+      state.scanned = saved.scanned || [];
+      savedNoticeText.textContent =
+        `${saved.codes.length} mã — Đã scan ${(saved.scanned || []).length}`;
+      savedNotice.style.display = 'flex';
+      // Pre-fill textarea
+      codeListInput.value = saved.codes.join('\n');
+      updateCodePreview();
+    }
   }
 }
+
+function applyTheme() {
+  if (state.theme === 'light') {
+    document.body.classList.add('light-mode');
+    themeToggle.textContent = '☀️';
+  } else {
+    document.body.classList.remove('light-mode');
+    themeToggle.textContent = '🌓';
+  }
+}
+
+themeToggle.addEventListener('click', () => {
+  state.theme = state.theme === 'dark' ? 'light' : 'dark';
+  applyTheme();
+  saveToLS();
+});
 
 codeListInput.addEventListener('input', updateCodePreview);
 

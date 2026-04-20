@@ -1,23 +1,28 @@
 <!DOCTYPE html>
 <html lang="vi">
+
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-  <meta name="description" content="GHN Barcode Pick & Pack Checker - Công cụ scan barcode kiểm tra đơn hàng cho NVPTTT" />
+  <meta name="description"
+    content="GHN Barcode Pick & Pack Checker - Công cụ scan barcode kiểm tra đơn hàng cho NVPTTT" />
   <meta name="theme-color" content="#0a0a0f" />
   <title>GHN Pick & Pack Checker</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
+  <link rel="stylesheet"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
   <link rel="stylesheet" href="style.css" />
 </head>
+
 <body>
 
   <!-- ===================== SETUP SCREEN ===================== -->
   <div id="setupScreen" class="screen active">
     <div class="setup-hero">
+      <button class="theme-toggle" id="themeToggle" title="Đổi giao diện">🌓</button>
       <div class="logo-badge"><span class="dot"></span> GHN Internal Tool</div>
-      <h1 class="setup-title">Pick &amp; Pack<br/>Checker</h1>
+      <h1 class="setup-title">Pick &amp; Pack<br />Checker</h1>
       <p class="setup-subtitle">Scan QR kiện — kiểm tra đơn tức thì</p>
     </div>
 
@@ -37,11 +42,9 @@
           Danh sách mã đơn
           <span class="code-count-badge" id="codeCountBadge">0 mã</span>
         </div>
-        <textarea
-          id="codeListInput"
+        <textarea id="codeListInput"
           placeholder="Paste hoặc nhập mã đơn vào đây&#10;Mỗi mã một dòng&#10;&#10;Ví dụ:&#10;GHNAABC123&#10;GHN20240001&#10;..."
-          spellcheck="false"
-        ></textarea>
+          spellcheck="false"></textarea>
         <div class="hint-text">
           ℹ️ Hỗ trợ ≥ 500 mã. Tự động trim, uppercase, loại trùng.
         </div>
@@ -120,7 +123,9 @@
     </div>
 
     <div class="progress-container">
-      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+      <div class="progress-bar">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
       <div class="progress-label">
         <span id="progressLabel">0%</span>
         <span id="progressTotal">0 / 0 đơn</span>
@@ -155,4 +160,5 @@
 
   <script type="module" src="app.js"></script>
 </body>
+
 </html>
