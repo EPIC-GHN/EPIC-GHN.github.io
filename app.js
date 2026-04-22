@@ -5,7 +5,9 @@
  */
 
 import { BrowserMultiFormatReader } from
-  'https://esm.sh/@zxing/browser@0.1.4';
+  'https://esm.sh/@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from
+  'https://esm.sh/@zxing/library';
 
 /* ══════════════════════════════════════════════════════
    STATE
@@ -13,66 +15,66 @@ import { BrowserMultiFormatReader } from
 const LS_KEY = 'ghn_picklist_v1';
 
 let state = {
-  codes:       [],   // normalized list (uppercase, unique)
-  scanned:     [],   // codes already scanned (in order)
+  codes: [],   // normalized list (uppercase, unique)
+  scanned: [],   // codes already scanned (in order)
   currentScreen: 'setup',
-  isMuted:     false,
-  theme:       'dark', // 'dark' or 'light'
+  isMuted: false,
+  theme: 'dark', // 'dark' or 'light'
 };
 
-let scanControls   = null;   // returned by BrowserMultiFormatReader
-let debounceTimer  = null;   // debounce between scans
-let resultTimer    = null;   // auto-hide result overlay
-let isCoolingDown  = false;  // 1.5s cooldown flag
+let scanControls = null;   // returned by BrowserMultiFormatReader
+let debounceTimer = null;   // debounce between scans
+let resultTimer = null;   // auto-hide result overlay
+let isCoolingDown = false;  // 1.5s cooldown flag
 let torchSupported = false;
-let torchOn        = false;
-let currentFilter  = 'all';
+let torchOn = false;
+let currentFilter = 'all';
 
 /* ══════════════════════════════════════════════════════
    DOM REFS
 ══════════════════════════════════════════════════════ */
 const $ = id => document.getElementById(id);
 
-const setupScreen        = $('setupScreen');
-const scanScreen         = $('scanScreen');
-const reviewScreen       = $('reviewScreen');
+const setupScreen = $('setupScreen');
+const scanScreen = $('scanScreen');
+const reviewScreen = $('reviewScreen');
 
-const codeListInput      = $('codeListInput');
-const codeCountBadge     = $('codeCountBadge');
-const previewList        = $('previewList');
-const startScanBtn       = $('startScanBtn');
-const savedNotice        = $('savedNotice');
-const savedNoticeText    = $('savedNoticeText');
-const clearSavedBtn      = $('clearSavedBtn');
+const codeListInput = $('codeListInput');
+const codeCountBadge = $('codeCountBadge');
+const previewList = $('previewList');
+const startScanBtn = $('startScanBtn');
+const savedNotice = $('savedNotice');
+const savedNoticeText = $('savedNoticeText');
+const clearSavedBtn = $('clearSavedBtn');
 
-const videoEl            = $('videoEl');
-const counterBadge       = $('counterBadge');
-const resultOverlay      = $('resultOverlay');
-const resultIcon         = $('resultIcon');
-const resultStatus       = $('resultStatus');
-const resultCode         = $('resultCode');
-const cameraError        = $('cameraError');
-const goToReviewBtn      = $('goToReviewBtn');
-const newBatchFromScanBtn= $('newBatchFromScanBtn');
-const muteBtn            = $('muteBtn');
-const toggleFlashBtn     = $('toggleFlashBtn');
-const retryCamera        = $('retryCamera');
-const themeToggle        = $('themeToggle');
+const videoEl = $('videoEl');
+const counterBadge = $('counterBadge');
+const resultOverlay = $('resultOverlay');
+const resultIcon = $('resultIcon');
+const resultStatus = $('resultStatus');
+const resultCode = $('resultCode');
+const cameraError = $('cameraError');
+const goToReviewBtn = $('goToReviewBtn');
+const newBatchFromScanBtn = $('newBatchFromScanBtn');
+const muteBtn = $('muteBtn');
+const toggleFlashBtn = $('toggleFlashBtn');
+const retryCamera = $('retryCamera');
+const themeToggle = $('themeToggle');
 
-const backToScanBtn      = $('backToScanBtn');
+const backToScanBtn = $('backToScanBtn');
 const newBatchFromReview = $('newBatchFromReviewBtn');
-const statScanned        = $('statScanned');
-const statRemaining      = $('statRemaining');
-const progressFill       = $('progressFill');
-const progressLabel      = $('progressLabel');
-const progressTotal      = $('progressTotal');
-const reviewList         = $('reviewList');
+const statScanned = $('statScanned');
+const statRemaining = $('statRemaining');
+const progressFill = $('progressFill');
+const progressLabel = $('progressLabel');
+const progressTotal = $('progressTotal');
+const reviewList = $('reviewList');
 
-const confirmDialog      = $('confirmDialogBackdrop');
-const confirmCancelBtn   = $('confirmCancelBtn');
-const confirmOkBtn       = $('confirmOkBtn');
+const confirmDialog = $('confirmDialogBackdrop');
+const confirmCancelBtn = $('confirmCancelBtn');
+const confirmOkBtn = $('confirmOkBtn');
 
-const toast              = $('toast');
+const toast = $('toast');
 
 /* ══════════════════════════════════════════════════════
    AUDIO (Web Audio API — generates tones, no files needed)
@@ -83,7 +85,7 @@ function playTone(type) {
     const ctx = new (window.AudioContext || window.webkitAudioContext)();
 
     const makeBeep = (freq, waveType, startAt, duration, volume = 0.35) => {
-      const osc  = ctx.createOscillator();
+      const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.connect(gain); gain.connect(ctx.destination);
       osc.frequency.value = freq;
@@ -96,15 +98,15 @@ function playTone(type) {
 
     if (type === 'found') {
       // Pleasant ascending double-beep
-      makeBeep(880, 'sine', 0,    0.12);
-      makeBeep(1100,'sine', 0.15, 0.15);
+      makeBeep(880, 'sine', 0, 0.12);
+      makeBeep(1100, 'sine', 0.15, 0.15);
     } else if (type === 'duplicate') {
       // Warning: two medium beeps
-      makeBeep(520, 'triangle', 0,    0.15);
+      makeBeep(520, 'triangle', 0, 0.15);
       makeBeep(520, 'triangle', 0.22, 0.15);
     } else if (type === 'notfound') {
       // Error: low descending buzz
-      makeBeep(300, 'sawtooth', 0,    0.18);
+      makeBeep(300, 'sawtooth', 0, 0.18);
       makeBeep(220, 'sawtooth', 0.22, 0.22);
     }
   } catch (e) { /* AudioContext blocked – silent fail */ }
@@ -115,8 +117,8 @@ function playTone(type) {
 ══════════════════════════════════════════════════════ */
 function normalizeCodes(raw) {
   const lines = raw.split(/[\n,;]+/);
-  const seen  = new Set();
-  const out   = [];
+  const seen = new Set();
+  const out = [];
   for (const line of lines) {
     const code = line.trim().toUpperCase();
     if (code && !seen.has(code)) { seen.add(code); out.push(code); }
@@ -134,12 +136,12 @@ function normalizeScanned(raw) {
 ══════════════════════════════════════════════════════ */
 function saveToLS() {
   localStorage.setItem(LS_KEY, JSON.stringify({
-    codes:   state.codes,
+    codes: state.codes,
     scanned: state.scanned,
-    theme:   state.theme,
+    theme: state.theme,
   }));
 }
-function clearLS() { 
+function clearLS() {
   const theme = state.theme;
   localStorage.removeItem(LS_KEY);
   // Keep theme even after clearing batch
@@ -170,8 +172,8 @@ function showToast(msg, duration = 3000) {
 ══════════════════════════════════════════════════════ */
 function showScreen(name) {
   [setupScreen, scanScreen, reviewScreen].forEach(s => s.classList.remove('active'));
-  if (name === 'setup')  { setupScreen.classList.add('active');  stopCamera(); }
-  if (name === 'scan')   { scanScreen.classList.add('active');   startCamera(); }
+  if (name === 'setup') { setupScreen.classList.add('active'); stopCamera(); }
+  if (name === 'scan') { scanScreen.classList.add('active'); startCamera(); }
   if (name === 'review') {
     reviewScreen.classList.add('active');
     // Pause camera but keep stream (resume instantly when going back)
@@ -193,7 +195,7 @@ function initSetup() {
       applyTheme();
     }
     if (saved.codes && saved.codes.length > 0) {
-      state.codes   = saved.codes;
+      state.codes = saved.codes;
       state.scanned = saved.scanned || [];
       savedNoticeText.textContent =
         `${saved.codes.length} mã — Đã scan ${(saved.scanned || []).length}`;
@@ -259,7 +261,7 @@ function updateCodePreview() {
 startScanBtn.addEventListener('click', () => {
   const codes = normalizeCodes(codeListInput.value);
   if (codes.length === 0) return;
-  state.codes   = codes;
+  state.codes = codes;
   state.scanned = [];
   saveToLS();
   savedNotice.style.display = 'none';
@@ -268,7 +270,7 @@ startScanBtn.addEventListener('click', () => {
 
 clearSavedBtn.addEventListener('click', () => {
   clearLS();
-  state.codes   = [];
+  state.codes = [];
   state.scanned = [];
   codeListInput.value = '';
   updateCodePreview();
@@ -278,27 +280,76 @@ clearSavedBtn.addEventListener('click', () => {
 /* ══════════════════════════════════════════════════════
    CAMERA / SCANNER
 ══════════════════════════════════════════════════════ */
-const codeReader = new BrowserMultiFormatReader();
+
+// Restrict formats to only those used in shipping labels
+const scanHints = new Map();
+scanHints.set(DecodeHintType.POSSIBLE_FORMATS, [
+  BarcodeFormat.QR_CODE,
+  BarcodeFormat.CODE_128,
+  // BarcodeFormat.EAN_13,
+  // BarcodeFormat.EAN_8,
+]);
+scanHints.set(DecodeHintType.TRY_HARDER, false);
+const codeReader = new BrowserMultiFormatReader(scanHints);
+
+// Offscreen canvas for center-crop ROI
+const roiCanvas = document.createElement('canvas');
+roiCanvas.width = 480;
+roiCanvas.height = 360;
+const roiCtx = roiCanvas.getContext('2d');
 
 async function startCamera() {
   cameraError.classList.remove('show');
   videoEl.style.display = 'block';
 
   try {
-    const constraints = {
-      video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 } }
-    };
-    scanControls = await codeReader.decodeFromConstraints(
-      constraints, videoEl, onDecode
-    );
+    const stream = await navigator.mediaDevices.getUserMedia({
+      video: {
+        facingMode: { ideal: 'environment' },
+        width:  { ideal: 1280, max: 1280 },
+        height: { ideal: 720,  max: 720  },
+      }
+    });
+    videoEl.srcObject = stream;
+    await videoEl.play();
 
     // Try torch
-    const track = videoEl.srcObject?.getVideoTracks?.()[0];
+    const track = stream.getVideoTracks()[0];
     if (track) {
       const caps = track.getCapabilities?.() || {};
       torchSupported = !!caps.torch;
       toggleFlashBtn.style.display = torchSupported ? '' : 'none';
     }
+
+    let running = true;
+    let lastScanTime = 0;
+
+    const scanLoop = async () => {
+      if (!running) return;
+      const now = Date.now();
+      if (now - lastScanTime >= 150 && videoEl.readyState >= 2) {
+        lastScanTime = now;
+        // Crop center 60% of the video frame into the ROI canvas
+        const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
+        const sw = vw * 0.6, sh = vh * 0.6;
+        roiCtx.drawImage(videoEl, (vw - sw) / 2, (vh - sh) / 2, sw, sh,
+                         0, 0, roiCanvas.width, roiCanvas.height);
+        try {
+          const result = await codeReader.decodeFromCanvas(roiCanvas);
+          onDecode(result, null);
+        } catch { /* NotFoundException — no barcode in frame, continue */ }
+      }
+      requestAnimationFrame(scanLoop);
+    };
+    requestAnimationFrame(scanLoop);
+
+    scanControls = {
+      stop() {
+        running = false;
+        stream.getTracks().forEach(t => t.stop());
+        videoEl.srcObject = null;
+      }
+    };
   } catch (err) {
     console.error('Camera error:', err);
     videoEl.style.display = 'none';
@@ -310,7 +361,7 @@ async function startCamera() {
 
 function stopCamera() {
   if (scanControls) {
-    try { scanControls.stop(); } catch {}
+    try { scanControls.stop(); } catch { }
     scanControls = null;
   }
   torchOn = false;
@@ -322,7 +373,7 @@ async function onDecode(result, error) {
   if (isCoolingDown) return;
 
   const rawText = result.getText();
-  const code    = normalizeScanned(rawText);
+  const code = normalizeScanned(rawText);
 
   isCoolingDown = true;
   clearTimeout(debounceTimer);
@@ -332,7 +383,7 @@ async function onDecode(result, error) {
 }
 
 function handleScan(code) {
-  const inList    = state.codes.includes(code);
+  const inList = state.codes.includes(code);
   const inScanned = state.scanned.includes(code);
 
   let type, icon, statusText;
@@ -361,9 +412,9 @@ function handleScan(code) {
 
 function showResult(type, icon, statusText, code) {
   resultOverlay.className = `result-overlay ${type} show`;
-  resultIcon.textContent   = icon;
+  resultIcon.textContent = icon;
   resultStatus.textContent = statusText;
-  resultCode.textContent   = code;
+  resultCode.textContent = code;
 
   clearTimeout(resultTimer);
   resultTimer = setTimeout(() => {
@@ -390,7 +441,7 @@ toggleFlashBtn.addEventListener('click', async () => {
 /* Mute */
 muteBtn.addEventListener('click', () => {
   state.isMuted = !state.isMuted;
-  muteBtn.textContent  = state.isMuted ? '🔇' : '🔔';
+  muteBtn.textContent = state.isMuted ? '🔇' : '🔔';
   document.body.classList.toggle('muted', state.isMuted);
 });
 
@@ -404,14 +455,14 @@ retryCamera.addEventListener('click', () => {
    REVIEW SCREEN
 ══════════════════════════════════════════════════════ */
 function renderReview() {
-  const total    = state.codes.length;
+  const total = state.codes.length;
   const scannedN = state.scanned.length;
-  const remainN  = total - scannedN;
-  const pct      = total ? Math.round((scannedN / total) * 100) : 0;
+  const remainN = total - scannedN;
+  const pct = total ? Math.round((scannedN / total) * 100) : 0;
 
-  statScanned.textContent   = scannedN;
+  statScanned.textContent = scannedN;
   statRemaining.textContent = remainN;
-  progressFill.style.width  = pct + '%';
+  progressFill.style.width = pct + '%';
   progressLabel.textContent = pct + '%';
   progressTotal.textContent = `${scannedN} / ${total} đơn`;
 
@@ -464,12 +515,12 @@ goToReviewBtn.addEventListener('click', () => showScreen('review'));
 backToScanBtn.addEventListener('click', () => showScreen('scan'));
 
 newBatchFromScanBtn.addEventListener('click', () => confirmDialog.classList.add('show'));
-newBatchFromReview.addEventListener('click',  () => confirmDialog.classList.add('show'));
+newBatchFromReview.addEventListener('click', () => confirmDialog.classList.add('show'));
 
 confirmCancelBtn.addEventListener('click', () => confirmDialog.classList.remove('show'));
 confirmOkBtn.addEventListener('click', () => {
   confirmDialog.classList.remove('show');
-  state.codes   = [];
+  state.codes = [];
   state.scanned = [];
   clearLS();
   codeListInput.value = '';
