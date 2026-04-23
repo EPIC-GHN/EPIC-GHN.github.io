@@ -367,10 +367,7 @@ async function onDecode(result, error) {
   if (isCoolingDown) return;
 
   const format = result.getBarcodeFormat();
-  if (format !== BarcodeFormat.QR_CODE) {
-    return;
-  }
-
+  
   const rawText = result.getText();
   const code = normalizeScanned(rawText);
 
