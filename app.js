@@ -279,12 +279,7 @@ clearSavedBtn.addEventListener('click', () => {
    CAMERA / SCANNER
 ══════════════════════════════════════════════════════ */
 
-const scanHints = new Map();
-scanHints.set(DecodeHintType.POSSIBLE_FORMATS, [
-  BarcodeFormat.QR_CODE,
-  BarcodeFormat.CODE_128,
-]);
-const codeReader = new BrowserMultiFormatReader(scanHints);
+const codeReader = new BrowserMultiFormatReader();
 
 // Offscreen canvas for center-crop ROI
 const roiCanvas = document.createElement('canvas');
