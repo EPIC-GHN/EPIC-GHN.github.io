@@ -4,8 +4,8 @@
  * Uses @zxing/browser via esm.sh CDN for barcode decoding.
  */
 
-import { BrowserMultiFormatReader } from
-  'https://esm.sh/@zxing/browser';
+import { BrowserMultiFormatReader } from 'https://esm.sh/@zxing/browser';
+import { BarcodeFormat, DecodeHintType } from 'https://esm.sh/@zxing/library';
 
 /* ══════════════════════════════════════════════════════
    STATE
@@ -279,7 +279,12 @@ clearSavedBtn.addEventListener('click', () => {
    CAMERA / SCANNER
 ══════════════════════════════════════════════════════ */
 
-const codeReader = new BrowserMultiFormatReader();
+const scanHints = new Map();
+scanHints.set(DecodeHintType.POSSIBLE_FORMATS, [
+  BarcodeFormat.QR_CODE,
+  BarcodeFormat.CODE_128,
+]);
+const codeReader = new BrowserMultiFormatReader(scanHints);
 
 // Offscreen canvas for center-crop ROI
 const roiCanvas = document.createElement('canvas');
@@ -360,6 +365,11 @@ function stopCamera() {
 async function onDecode(result, error) {
   if (!result) return;   // NotFoundException and other decode misses are silently ignored
   if (isCoolingDown) return;
+
+  const format = result.getBarcodeFormat();
+  if (format !== BarcodeFormat.QR_CODE && format !== BarcodeFormat.CODE_128) {
+    return;
+  }
 
   const rawText = result.getText();
   const code = normalizeScanned(rawText);
