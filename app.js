@@ -6,8 +6,6 @@
 
 import { BrowserMultiFormatReader } from
   'https://esm.sh/@zxing/browser';
-import { BarcodeFormat, DecodeHintType } from
-  'https://esm.sh/@zxing/library';
 
 /* ══════════════════════════════════════════════════════
    STATE
@@ -281,16 +279,7 @@ clearSavedBtn.addEventListener('click', () => {
    CAMERA / SCANNER
 ══════════════════════════════════════════════════════ */
 
-// Restrict formats to only those used in shipping labels
-const scanHints = new Map();
-scanHints.set(DecodeHintType.POSSIBLE_FORMATS, [
-  BarcodeFormat.QR_CODE,
-  BarcodeFormat.CODE_128,
-  // BarcodeFormat.EAN_13,
-  // BarcodeFormat.EAN_8,
-]);
-scanHints.set(DecodeHintType.TRY_HARDER, false);
-const codeReader = new BrowserMultiFormatReader(scanHints);
+const codeReader = new BrowserMultiFormatReader();
 
 // Offscreen canvas for center-crop ROI
 const roiCanvas = document.createElement('canvas');
