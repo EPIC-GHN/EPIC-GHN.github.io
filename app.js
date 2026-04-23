@@ -295,8 +295,8 @@ async function startCamera() {
     const stream = await navigator.mediaDevices.getUserMedia({
       video: {
         facingMode: { ideal: 'environment' },
-        width:  { ideal: 1280, max: 1280 },
-        height: { ideal: 720,  max: 720  },
+        width: { ideal: 1280, max: 1280 },
+        height: { ideal: 720, max: 720 },
       }
     });
     videoEl.srcObject = stream;
@@ -316,15 +316,18 @@ async function startCamera() {
     const scanLoop = async () => {
       if (!running) return;
       const now = Date.now();
-      if (now - lastScanTime >= 150 && videoEl.readyState >= 2) {
+      if (now - lastScanTime >= 0 && videoEl.readyState >= 2) {
         lastScanTime = now;
         // Crop center 60% of the video frame into the ROI canvas
         const vw = videoEl.videoWidth, vh = videoEl.videoHeight;
         const sw = vw * 0.6, sh = vh * 0.6;
         roiCtx.drawImage(videoEl, (vw - sw) / 2, (vh - sh) / 2, sw, sh,
-                         0, 0, roiCanvas.width, roiCanvas.height);
+          0, 0, roiCanvas.width, roiCanvas.height);
         try {
+          const t0 = performance.now();
           const result = await codeReader.decodeFromCanvas(roiCanvas);
+          const t1 = performance.now();
+          console.log(`Scan decode time: ${(t1 - t0).toFixed(1)}ms`);
           onDecode(result, null);
         } catch { /* NotFoundException — no barcode in frame, continue */ }
       }
@@ -362,7 +365,7 @@ async function onDecode(result, error) {
   if (isCoolingDown) return;
 
   const format = result.getBarcodeFormat();
-  if (format !== BarcodeFormat.QR_CODE && format !== BarcodeFormat.CODE_128) {
+  if (format !== BarcodeFormat.QR_CODE) {
     return;
   }
 
