@@ -502,10 +502,28 @@ function renderFilteredList() {
       <span class="review-item-icon">${done ? '✅' : '⏳'}</span>
       <span class="review-item-code">${code}</span>
       <span class="review-item-badge">${done ? 'Đã scan' : 'Chưa scan'}</span>
+      <button class="item-copy-btn" data-code="${code}" title="Sao chép mã">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+      </button>
     `;
+    div.querySelector('.item-copy-btn').addEventListener('click', (e) => {
+      e.stopPropagation();
+      copyToClipboard(code, e.currentTarget);
+    });
     frag.appendChild(div);
   });
   reviewList.appendChild(frag);
+}
+
+function copyToClipboard(text, btn) {
+  navigator.clipboard.writeText(text).then(() => {
+    if (btn) {
+      btn.classList.add('copied');
+      const original = btn.innerHTML;
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+      setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = original; }, 1500);
+    }
+  });
 }
 
 document.querySelectorAll('.filter-tab').forEach(btn => {
@@ -514,6 +532,21 @@ document.querySelectorAll('.filter-tab').forEach(btn => {
     btn.classList.add('active');
     currentFilter = btn.dataset.filter;
     renderFilteredList();
+  });
+});
+
+const copyAllBtn = document.getElementById('copyAllBtn');
+const copyAllLabel = document.getElementById('copyAllLabel');
+copyAllBtn.addEventListener('click', () => {
+  const scannedSet = new Set(state.scanned);
+  let codes = state.codes;
+  if (currentFilter === 'scanned') codes = codes.filter(c => scannedSet.has(c));
+  if (currentFilter === 'pending') codes = codes.filter(c => !scannedSet.has(c));
+  if (!codes.length) return;
+  navigator.clipboard.writeText(codes.join('\n')).then(() => {
+    copyAllBtn.classList.add('copied');
+    copyAllLabel.textContent = `Đã copy ${codes.length} mã`;
+    setTimeout(() => { copyAllBtn.classList.remove('copied'); copyAllLabel.textContent = 'Copy tất cả'; }, 2000);
   });
 });
 

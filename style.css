@@ -396,7 +396,8 @@ textarea:focus { border-color:var(--accent); }
   font-size:12px; color:var(--text-muted); margin-top:6px;
 }
 
-.filter-tabs { display:flex; padding:0 20px; gap:8px; margin-bottom:12px; }
+.filter-tabs { display:flex; align-items:center; justify-content:space-between; padding:0 20px; gap:8px; margin-bottom:12px; }
+.filter-tabs-group { display:flex; gap:8px; flex-wrap:wrap; }
 .filter-tab {
   padding:8px 16px; border-radius:100px;
   border:1.5px solid var(--border); background:none;
@@ -405,6 +406,16 @@ textarea:focus { border-color:var(--accent); }
   transition:all .2s; -webkit-tap-highlight-color:transparent; white-space:nowrap;
 }
 .filter-tab.active { background:var(--accent); border-color:var(--accent); color:white; }
+.copy-all-btn {
+  display:flex; align-items:center; gap:6px;
+  padding:8px 14px; border-radius:100px;
+  border:1.5px solid var(--border); background:none;
+  color:var(--text-secondary); font-family:'Inter',sans-serif;
+  font-size:13px; font-weight:600; cursor:pointer;
+  transition:all .2s; -webkit-tap-highlight-color:transparent; white-space:nowrap; flex-shrink:0;
+}
+.copy-all-btn:hover { border-color:var(--accent); color:var(--accent); }
+.copy-all-btn.copied { border-color:var(--success); color:var(--success); }
 
 .review-list { padding:0 20px; display:flex; flex-direction:column; gap:8px; }
 .review-item {
@@ -427,6 +438,14 @@ textarea:focus { border-color:var(--accent); }
 }
 .review-item.scanned .review-item-badge { background:var(--success-bg); color:var(--success); }
 .review-item.pending .review-item-badge { background:var(--danger-bg); color:var(--danger); }
+.item-copy-btn {
+  display:flex; align-items:center; justify-content:center;
+  width:28px; height:28px; border-radius:6px; border:1px solid var(--border);
+  background:none; color:var(--text-muted); cursor:pointer; flex-shrink:0;
+  transition:all .2s; -webkit-tap-highlight-color:transparent;
+}
+.item-copy-btn:hover { border-color:var(--accent); color:var(--accent); background:rgba(99,102,241,.07); }
+.item-copy-btn.copied { border-color:var(--success); color:var(--success); }
 
 /* ── Confirm Dialog ──────────────────────────────────── */
 .dialog-backdrop {
