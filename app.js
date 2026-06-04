@@ -114,7 +114,7 @@ function playTone(type) {
    NORMALIZATION
 ══════════════════════════════════════════════════════ */
 function normalizeCodes(raw) {
-  const lines = raw.split(/[\n,;]+/);
+  const lines = raw.split(/[\s,;]+/);
   const seen = new Set();
   const out = [];
   for (const line of lines) {
