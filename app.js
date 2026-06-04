@@ -23,10 +23,19 @@ let state = {
 let scanControls = null;   // returned by BrowserMultiFormatReader
 let debounceTimer = null;   // debounce between scans
 let resultTimer = null;   // auto-hide result overlay
+let completionToastTimer = null;
 let isCoolingDown = false;  // 1.5s cooldown flag
 let torchSupported = false;
 let torchOn = false;
 let currentFilter = 'all';
+
+let audioCtx = null;
+function getAudioCtx() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  }
+  return audioCtx;
+}
 
 /* ══════════════════════════════════════════════════════
    DOM REFS
@@ -80,7 +89,7 @@ const toast = $('toast');
 function playTone(type) {
   if (state.isMuted) return;
   try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    const ctx = getAudioCtx();
 
     const makeBeep = (freq, waveType, startAt, duration, volume = 0.35) => {
       const osc = ctx.createOscillator();
@@ -137,6 +146,7 @@ function saveToLS() {
     codes: state.codes,
     scanned: state.scanned,
     theme: state.theme,
+    currentScreen: state.currentScreen,
   }));
 }
 function clearLS() {
@@ -201,6 +211,12 @@ function initSetup() {
       // Pre-fill textarea
       codeListInput.value = saved.codes.join('\n');
       updateCodePreview();
+
+      // Auto-resume scan session if user was scanning before leaving
+      if (saved.currentScreen === 'scan') {
+        showScreen('scan');
+        return;
+      }
     }
   }
 }
@@ -306,6 +322,18 @@ async function startCamera() {
     videoEl.srcObject = stream;
     await videoEl.play();
 
+    let running = true;
+
+    // Assign scanControls immediately so stopCamera() can always release the
+    // stream — even if an exception is thrown in the torch/RAF setup below.
+    scanControls = {
+      stop() {
+        running = false;
+        stream.getTracks().forEach(t => t.stop());
+        videoEl.srcObject = null;
+      }
+    };
+
     // Try torch
     const track = stream.getVideoTracks()[0];
     if (track) {
@@ -314,7 +342,6 @@ async function startCamera() {
       toggleFlashBtn.style.display = torchSupported ? '' : 'none';
     }
 
-    let running = true;
     let lastScanTime = 0;
 
     const scanLoop = async () => {
@@ -349,15 +376,9 @@ async function startCamera() {
       requestAnimationFrame(scanLoop);
     };
     requestAnimationFrame(scanLoop);
-
-    scanControls = {
-      stop() {
-        running = false;
-        stream.getTracks().forEach(t => t.stop());
-        videoEl.srcObject = null;
-      }
-    };
   } catch (err) {
+    // Release any stream that was acquired before the error occurred.
+    stopCamera();
     console.error('Camera error:', err);
     videoEl.style.display = 'none';
     cameraError.classList.add('show');
@@ -371,6 +392,7 @@ function stopCamera() {
     try { scanControls.stop(); } catch { }
     scanControls = null;
   }
+  clearTimeout(completionToastTimer);
   torchOn = false;
   toggleFlashBtn.textContent = '🔦';
 }
@@ -412,7 +434,10 @@ function handleScan(code) {
 
     // Check completion
     if (state.scanned.length === state.codes.length) {
-      setTimeout(() => showToast('🎉 Hoàn tất 100%! Tất cả đơn đã được scan.', 5000), 400);
+      clearTimeout(completionToastTimer);
+      completionToastTimer = setTimeout(() => {
+        if (state.currentScreen === 'scan') showToast('🎉 Hoàn tất 100%! Tất cả đơn đã được scan.', 5000);
+      }, 400);
     }
   }
 
@@ -521,7 +546,9 @@ function copyToClipboard(text, btn) {
       btn.classList.add('copied');
       const original = btn.innerHTML;
       btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
-      setTimeout(() => { btn.classList.remove('copied'); btn.innerHTML = original; }, 1500);
+      setTimeout(() => {
+        if (document.contains(btn)) { btn.classList.remove('copied'); btn.innerHTML = original; }
+      }, 1500);
     }
   });
 }
@@ -574,6 +601,22 @@ confirmOkBtn.addEventListener('click', () => {
 /* Close dialog on backdrop click */
 confirmDialog.addEventListener('click', e => {
   if (e.target === confirmDialog) confirmDialog.classList.remove('show');
+});
+
+/* ══════════════════════════════════════════════════════
+   PAGE VISIBILITY — restart camera when user returns
+══════════════════════════════════════════════════════ */
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && state.currentScreen === 'scan') {
+    // Camera stream is killed by the browser when the tab/app is backgrounded;
+    // restart it so the user can continue scanning without a manual retry.
+    if (!scanControls) {
+      startCamera();
+    }
+  } else if (document.visibilityState === 'hidden' && state.currentScreen === 'scan') {
+    // Release the camera track so other apps can use it while backgrounded.
+    stopCamera();
+  }
 });
 
 /* ══════════════════════════════════════════════════════
